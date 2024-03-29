@@ -1,12 +1,12 @@
 package main
 
 import (
-   "fmt"
-   "time"
-   "sync"
-   "math/rand"
-   "slices"
-   rl "github.com/lachee/raylib-goplus/raylib"
+	"fmt"
+	"math/rand"
+	"slices"
+	//"sync"
+	"time"
+	rl "github.com/lachee/raylib-goplus/raylib"
 )
 
 const SCREEN_WIDTH = 800;
@@ -27,7 +27,7 @@ const (
 type Snake []rl.Vector2
 
 type Direction struct {
-   mut sync.Mutex
+   //mut sync.Mutex
    val rl.Vector2
 }
 
@@ -47,11 +47,11 @@ func NewPlayingField(w, h int) PlayingField {
 }
 
 type GameState struct {
-   alive bool
    duration int
    occupied_fields map[rl.Vector2]Tile
    snake Snake
    score int
+   dir Direction
 }
 
 func (this *GameState) CheckFoodEaten() {
@@ -64,6 +64,9 @@ func (this *GameState) CheckFoodEaten() {
          this.snake = append(this.snake, last.Add(append_dir))
          this.PlaceFood()
          this.score += 100
+         if this.score % 200 == 0 {
+            this.duration -= 25
+         }
       }
    }
 }
@@ -75,7 +78,7 @@ func (this *GameState) PlaceFood() {
 }
 
 func NewGame() GameState {
-   ret := GameState{ alive: true, duration: 400, occupied_fields: make(map[rl.Vector2]Tile), snake: make(Snake, 0, 50) }
+   ret := GameState{ duration: 400, occupied_fields: make(map[rl.Vector2]Tile), snake: make(Snake, 0, 50), dir: NewDirection(1, 0) }
    ret.snake = append(ret.snake, rl.NewVector2(10, 10))
    ret.snake = append(ret.snake, rl.NewVector2(11, 10))
    ret.snake = append(ret.snake, rl.NewVector2(12, 10))
@@ -84,14 +87,14 @@ func NewGame() GameState {
 }
 
 func (this *Direction) Set(x, y float32) {
-   this.mut.Lock()
-   defer this.mut.Unlock()
+   // this.mut.Lock()
+   // defer this.mut.Unlock()
    this.val = rl.Vector2{ X: x, Y: y }
 }
 
 func (this *Direction) Get() rl.Vector2 {
-   this.mut.Lock()
-   defer this.mut.Unlock()
+   // this.mut.Lock()
+   // defer this.mut.Unlock()
    return this.val 
 }
 
@@ -129,6 +132,7 @@ func (s *Snake) MoveSnake(dir rl.Vector2) (bool) {
 var rand_gen = rand.New(rand.NewSource(time.Now().Unix()))
 
 func main() {
+
    rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Snake")
    defer rl.CloseWindow()
 
@@ -146,26 +150,39 @@ func main() {
 
    state := NewGame()
 
-   dir := Direction{val: rl.NewVector2(1, 0)}
-
    fmt.Printf("%v %v %v %v\n", Up, Left, Down, Right)
 
-   for !rl.WindowShouldClose() {
-      if rl.IsKeyDown(rl.KeyUp) {
-         dir.Set(0, -1)
-      } else
-      if rl.IsKeyDown(rl.KeyDown) {
-         dir.Set(0, 1)
-      } else
-      if rl.IsKeyDown(rl.KeyLeft) {
-         dir.Set(-1, 0)
-      } else
-      if rl.IsKeyDown(rl.KeyRight) {
-         dir.Set(1, 0)
-      }
+   game_running := true
 
-      state.alive = state.snake.MoveSnake(dir.Get())
-      state.CheckFoodEaten()
+   for !rl.WindowShouldClose() {
+
+      if game_running {
+         if rl.IsKeyDown(rl.KeyUp) && state.dir.Get() != rl.NewVector2(0, 1) {
+            state.dir.Set(0, -1)
+         } else
+         if rl.IsKeyDown(rl.KeyDown) && state.dir.Get() != rl.NewVector2(0, -1) {
+            state.dir.Set(0, 1)
+         } else
+         if rl.IsKeyDown(rl.KeyLeft) && state.dir.Get() != rl.NewVector2(1, 0) {
+            state.dir.Set(-1, 0)
+         } else
+         if rl.IsKeyDown(rl.KeyRight) && state.dir.Get() != rl.NewVector2(-1, 0){
+            state.dir.Set(1, 0)
+         }
+
+         if !state.snake.MoveSnake(state.dir.Get()) {
+            game_running = false
+            fmt.Println("done")
+         }
+         state.CheckFoodEaten()
+      } else {
+         if rl.IsKeyDown(rl.KeyEnter) {
+            state = NewGame()
+            fmt.Printf("Snake len: %d\n", len(state.snake))
+            game_running = true
+            continue
+         }
+      }
 
       rl.BeginDrawing()
 
@@ -183,8 +200,17 @@ func main() {
 
          rl.DrawText(fmt.Sprintf("Score: %d", state.score), 10, 10, 30, rl.Red)
 
+         if !game_running {
+            text := "Game Over"
+            font_size := 50
+            extents := rl.MeasureTextEx(*rl.GetFontDefault(), text, float32(font_size), 1)
+            rl.DrawText(text, int((SCREEN_WIDTH / 2) - (extents.X / 2)), int((SCREEN_HEIGHT / 2) - (extents.Y / 2)), font_size, rl.Red)
+         }
+
       rl.EndDrawing()
 
-      time.Sleep(time.Duration(state.duration) * time.Millisecond)
+      if game_running {
+         time.Sleep(time.Duration(state.duration) * time.Millisecond)
+      }
    }
 }
