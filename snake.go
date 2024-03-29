@@ -5,6 +5,7 @@ import (
    "time"
    "sync"
    "math/rand"
+   "slices"
    rl "github.com/lachee/raylib-goplus/raylib"
 )
 
@@ -21,6 +22,7 @@ const (
    Down = 65361 + iota
    Esc = 65307
 )
+
 
 type Snake []rl.Vector2
 
@@ -71,13 +73,20 @@ func DrawSnake(s Snake, pw int, ph int) {
    }
 }
 
-func (s *Snake) MoveSnake(dir rl.Vector2) {
+// @return: true => legal move
+//          false => player dies
+func (s *Snake) MoveSnake(dir rl.Vector2) (bool) {
    new_pos := (*s)[len(*s) - 1].Add(dir)
    if (new_pos.X < 0 || new_pos.Y < 0 || new_pos.X > PIXELS_X-1 || new_pos.Y > PIXELS_Y-1) {
-      return
+      return false
+   }
+   new_point := (*s)[len(*s) - 1].Add(dir)
+   if slices.Index(*s, new_point) != -1 {
+      return false
    }
    *s = (*s)[1:]
-   *s = append(*s, (*s)[len(*s) - 1].Add(dir))
+   *s = append(*s, new_point)
+   return true
 }
 
 var rand_gen = rand.New(rand.NewSource(time.Now().Unix()))
@@ -142,7 +151,7 @@ func main() {
             fmt.Printf("%v\n", append_dir)
             snake = append(snake, last.Add(append_dir))
             place_food()
-            score += 50
+            score += 100
          }
       }
 
@@ -159,6 +168,8 @@ func main() {
                DrawPixel(pos, pixel_width, pixel_height, rl.Red)
             }
          }
+
+         rl.DrawText(fmt.Sprintf("Score: %d", score), 10, 10, 30, rl.Red)
 
       rl.EndDrawing()
 
