@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+   "math"
 	"slices"
 	//"sync"
 	"time"
@@ -12,8 +13,8 @@ import (
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 800;
 
-const PIXELS_X = 20;
-const PIXELS_Y = 20;
+const PIXELS_X = 30;
+const PIXELS_Y = 30;
 
 const (
    Left = 65361
@@ -60,7 +61,6 @@ func (this *GameState) CheckFoodEaten() {
       if pos == last {
          delete(this.occupied_fields, pos)
          append_dir := last.Subtract(this.snake[len(this.snake) - 2])
-         fmt.Printf("%v\n", append_dir)
          this.snake = append(this.snake, last.Add(append_dir))
          this.PlaceFood()
          this.score += 100
@@ -138,8 +138,8 @@ func main() {
 
    rl.SetTargetFPS(60)
 
-   pixel_width := int(float32(SCREEN_WIDTH) / float32(PIXELS_X))
-   pixel_height := int(float32(SCREEN_HEIGHT) / float32(PIXELS_Y))
+   pixel_width := int(math.Round(float64(SCREEN_WIDTH) / float64(PIXELS_X)))
+   pixel_height := int(math.Round(float64(SCREEN_HEIGHT) / float64(PIXELS_Y)))
 
    // snake := make(Snake, 0, 50)
    // snake = append(snake, rl.NewVector2(10, 10))
@@ -150,9 +150,9 @@ func main() {
 
    state := NewGame()
 
-   fmt.Printf("%v %v %v %v\n", Up, Left, Down, Right)
-
    game_running := true
+
+   bg := rl.NewColorInt(0x01121e);
 
    for !rl.WindowShouldClose() {
 
@@ -172,13 +172,11 @@ func main() {
 
          if !state.snake.MoveSnake(state.dir.Get()) {
             game_running = false
-            fmt.Println("done")
          }
          state.CheckFoodEaten()
       } else {
          if rl.IsKeyDown(rl.KeyEnter) {
             state = NewGame()
-            fmt.Printf("Snake len: %d\n", len(state.snake))
             game_running = true
             continue
          }
@@ -186,7 +184,7 @@ func main() {
 
       rl.BeginDrawing()
 
-         rl.ClearBackground(rl.Black)
+         rl.ClearBackground(bg)
 
          DrawSnake(state.snake, pixel_width, pixel_height)
          for pos, t := range state.occupied_fields {
