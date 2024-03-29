@@ -46,6 +46,43 @@ func NewPlayingField(w, h int) PlayingField {
    return ret
 }
 
+type GameState struct {
+   alive bool
+   duration int
+   occupied_fields map[rl.Vector2]Tile
+   snake Snake
+   score int
+}
+
+func (this *GameState) CheckFoodEaten() {
+   for pos := range this.occupied_fields {
+      last := this.snake[len(this.snake) - 1]
+      if pos == last {
+         delete(this.occupied_fields, pos)
+         append_dir := last.Subtract(this.snake[len(this.snake) - 2])
+         fmt.Printf("%v\n", append_dir)
+         this.snake = append(this.snake, last.Add(append_dir))
+         this.PlaceFood()
+         this.score += 100
+      }
+   }
+}
+
+func (this *GameState) PlaceFood() {
+   food_y := rand_gen.Intn(PIXELS_Y)
+   food_x := rand_gen.Intn(PIXELS_X)
+   this.occupied_fields[rl.NewVector2(float32(food_x), float32(food_y))] = Food
+}
+
+func NewGame() GameState {
+   ret := GameState{ alive: true, duration: 400, occupied_fields: make(map[rl.Vector2]Tile), snake: make(Snake, 0, 50) }
+   ret.snake = append(ret.snake, rl.NewVector2(10, 10))
+   ret.snake = append(ret.snake, rl.NewVector2(11, 10))
+   ret.snake = append(ret.snake, rl.NewVector2(12, 10))
+   ret.PlaceFood()
+   return ret
+}
+
 func (this *Direction) Set(x, y float32) {
    this.mut.Lock()
    defer this.mut.Unlock()
@@ -100,33 +137,19 @@ func main() {
    pixel_width := int(float32(SCREEN_WIDTH) / float32(PIXELS_X))
    pixel_height := int(float32(SCREEN_HEIGHT) / float32(PIXELS_Y))
 
-   snake := make(Snake, 0, 50)
-   snake = append(snake, rl.NewVector2(10, 10))
-   snake = append(snake, rl.NewVector2(11, 10))
-   snake = append(snake, rl.NewVector2(12, 10))
+   // snake := make(Snake, 0, 50)
+   // snake = append(snake, rl.NewVector2(10, 10))
+   // snake = append(snake, rl.NewVector2(11, 10))
+   // snake = append(snake, rl.NewVector2(12, 10))
 
-   field := NewPlayingField(PIXELS_X, PIXELS_Y)
+   //occupied_fields := make(map[rl.Vector2]Tile)
 
-   occupied_fields := make(map[rl.Vector2]Tile)
-
-   place_food := func() {
-      food_y := rand_gen.Intn(PIXELS_Y)
-      food_x := rand_gen.Intn(PIXELS_X)
-      field[food_y][food_x] = Food
-      occupied_fields[rl.NewVector2(float32(food_x), float32(food_y))] = Food
-   }
-
-   place_food()
+   state := NewGame()
 
    dir := Direction{val: rl.NewVector2(1, 0)}
 
-   // s := hook.Start()
-   // defer hook.End()
-
    fmt.Printf("%v %v %v %v\n", Up, Left, Down, Right)
 
-   duration := 300
-   score := 0
    for !rl.WindowShouldClose() {
       if rl.IsKeyDown(rl.KeyUp) {
          dir.Set(0, -1)
@@ -141,26 +164,15 @@ func main() {
          dir.Set(1, 0)
       }
 
-      snake.MoveSnake(dir.Get())
-
-      for pos := range occupied_fields {
-         last := snake[len(snake) - 1]
-         if pos == last {
-            delete(occupied_fields, pos)
-            append_dir := last.Subtract(snake[len(snake) - 2])
-            fmt.Printf("%v\n", append_dir)
-            snake = append(snake, last.Add(append_dir))
-            place_food()
-            score += 100
-         }
-      }
+      state.alive = state.snake.MoveSnake(dir.Get())
+      state.CheckFoodEaten()
 
       rl.BeginDrawing()
 
          rl.ClearBackground(rl.Black)
 
-         DrawSnake(snake, pixel_width, pixel_height)
-         for pos, t := range occupied_fields {
+         DrawSnake(state.snake, pixel_width, pixel_height)
+         for pos, t := range state.occupied_fields {
             switch t {
             case Food:
                DrawPixel(pos, pixel_width, pixel_height, rl.Green)
@@ -169,10 +181,10 @@ func main() {
             }
          }
 
-         rl.DrawText(fmt.Sprintf("Score: %d", score), 10, 10, 30, rl.Red)
+         rl.DrawText(fmt.Sprintf("Score: %d", state.score), 10, 10, 30, rl.Red)
 
       rl.EndDrawing()
 
-      time.Sleep(time.Duration(duration) * time.Millisecond)
+      time.Sleep(time.Duration(state.duration) * time.Millisecond)
    }
 }
